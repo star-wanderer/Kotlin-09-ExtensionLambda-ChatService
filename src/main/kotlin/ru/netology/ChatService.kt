@@ -34,49 +34,56 @@ object ChatService {
         return chats.count { !it.isDeleted && it.createdById != userId && it.messages.last().isNew }
     }
 
-    fun getChats(userId: Int): List<Chat>? {
-        val userChats = chats.filter { !it.isDeleted && it.createdById == userId && it.messages.last() != null }
-        return userChats.ifEmpty { println("Нет сообщений"); return null }
+    fun getChats(userId: Int): List<Chat> {
+        val userChats = chats.filter {  !it.isDeleted &&  it.messages.last().isNew && it.messages.last().createdById != userId
+                && (it.companionId1 == userId || it.companionId2 == userId) }
+        return userChats.ifEmpty { return listOf(Chat(messages = mutableListOf(Message(text = "Нет сообщений")))) }
     }
 
-    fun getChatMessages(userId: Int, chatId: Int, msgIdStarts: Int, msgCount: Int): List<Message>? {
-        val oneChatList = chats.filter { !it.isDeleted && it.id == chatId }
-        var messages = oneChatList.first().messages.filter { !it.isDeleted && it.createdById != userId }
-        messages = messages.subList(msgIdStarts, messages.last().id-1).chunked(msgCount)[0]
-        return if (messages.isEmpty()) null
-        else {
-            messages.forEach { it.isNew = false }; messages
-        }
+    fun getChatMessages(userId: Int, chatId: Int, msgIdStarts: Int, msgCount: Int): List<Message> {
+        var messages = chats.find { !it.isDeleted && it.id == chatId }
+            .let{ it?.messages ?:throw ChatNotFoundException(chatId)}
+            .asSequence()
+            .filter { !it.isDeleted && it.createdById != userId && it.id >= msgIdStarts }
+            .take( msgCount )
+            .toList()
+        messages.forEach{ it.isNew = false }
+        return messages
     }
 
     fun addMessage(userId: Int, sendToId: Int, message: Message) : Message {
         val targetChat = chats.find {
-            (it.companionId1 == sendToId && it.companionId2 == userId) || (it.companionId1 == userId && it.companionId2 == sendToId)
+            (it.companionId1 == sendToId && it.companionId2 == userId)
+                    || (it.companionId1 == userId && it.companionId2 == sendToId)
         }
-        targetChat?: run {var message = message.copy(id = 0x0001)
-            addChat(sendToId, message); return message }
+        targetChat?: run {
+            var message = message.copy(id = 0x0001)
+            addChat(sendToId, message);
+            return message
+        }
         var message = message.copy(id = targetChat.messages.last().id + 1)
         targetChat.messages.add(message)
         return message
     }
 
     fun editMessage(userId: Int, chatId: Int, message: Message, newText: String) : Boolean {
-        val targetChat = chats.find { it.id == chatId }
-        targetChat ?: throw ChatNotFoundException(chatId)
-        val targetMessage = targetChat.messages.find { !it.isDeleted && it.id == message.id && message.createdById == userId }
-        targetMessage?: throw MessageNotFoundException(userId, message.id)
-        targetMessage.isUpdated = true
-        targetMessage.text = newText
+        var message = chats.find { !it.isDeleted && it.id == chatId }
+             .let { it?.messages ?:throw ChatNotFoundException(chatId)}
+             .find { !it.isDeleted && it.id == message.id && message.createdById == userId }
+             .let { it ?:throw MessageNotFoundException(userId, message.id)}
+        message.isUpdated = false;
+        message.text = newText
         return true
     }
 
     fun deleteMessage(userId: Int, chatId: Int, message: Message) : Boolean {
-        val targetChat = chats.find { it.id == chatId }
-        targetChat ?: throw ChatNotFoundException(chatId)
-        var targetMessage = targetChat.messages.find { !it.isDeleted && it.id == message.id && message.createdById == userId }
-        targetMessage?: throw MessageNotFoundException(userId, message.id)
-        targetMessage.isDeleted = true
-        if (targetChat.messages.none { !it.isDeleted }) targetChat.isDeleted = true
+        var chat = chats.find { !it.isDeleted && it.id == chatId }
+            .let { it?: throw ChatNotFoundException(chatId)}
+        var message =  chat.messages
+            .find { !it.isDeleted && it.id == message.id && message.createdById == userId }
+            .let { it ?: throw MessageNotFoundException(userId, message.id) }
+        message.isDeleted = true
+      if ( chat.messages.none { !it.isDeleted } ) chat.isDeleted = true
         return true
     }
 }
