@@ -15,7 +15,7 @@ class ChatServiceTest {
         ChatService.addMessage(user1.id, user2.id, Message(createdById = user1.id, text = "Message 1"))
         ChatService.addMessage(user1.id, user2.id, Message(createdById = user1.id, text = "Message 2"))
 
-        assertEquals(0x0002, ChatService.getChats(user1.id)?.last()?.messages?.last()?.id)
+        assertEquals(0x0002, ChatService.getChats(user2.id).last().messages.last().id)
 
     }
 
@@ -65,9 +65,11 @@ class ChatServiceTest {
         ChatService.addMessage(user1.id, user2.id, Message(createdById = user1.id, text = "Let's go fishing tomorrow!"))
         ChatService.addMessage(user2.id, user1.id, Message(createdById = user2.id, replyToMessageId = 0x0002 , text = "Hi. Mmmm. Maybe"))
         ChatService.addMessage(user2.id, user3.id, Message(createdById = user2.id, text = "I'd love to spend life with you"))
-        ChatService.addMessage(user1.id, user3.id, Message(createdById = user1.id, text = "Hi! What about going to bar this evening?"))
+//        ChatService.addMessage(user1.id, user3.id, Message(createdById = user1.id, text = "Hi! What about going to bar this evening?"))
+//        ChatService.addMessage(user3.id, user1.id, Message(createdById = user3.id, replyToMessageId = 0x0001, text = "Great idea! I'm in!"))
 
-        assertEquals(0x0002, ChatService.getChats(user1.id)?.size)
+        // println(ChatService.getChats(user1.id)[0].messages.last().text)
+        assertEquals(0x0001, ChatService.getChats(user1.id).size)
     }
 
     @Test
@@ -122,9 +124,10 @@ class ChatServiceTest {
         val user2 = User(0x0002,"user2","54321")
         val msg = ChatService.addMessage(user1.id,user2.id, Message(createdById = user1.id, text = "Message 1"))
         val chatId = 0x0001
+        val noMessages = "Нет сообщений"
 
-        assertEquals(chatId, ChatService.getChats(user1.id)?.last()?.id)
         assertTrue(ChatService.deleteMessage(user1.id,chatId,msg))
-        assertEquals(null,ChatService.getChats(user1.id))
+
+        assertEquals(noMessages,ChatService.getChats(user1.id).first().messages.first().text)
     }
 }
